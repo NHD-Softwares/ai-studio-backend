@@ -45,16 +45,6 @@
   ],
   "author": "",
   "license": "MIT",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "prisma",
-      "@prisma/client",
-      "@prisma/engines",
-      "msgpackr-extract",
-      "workerd"
-    ]
-  },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
