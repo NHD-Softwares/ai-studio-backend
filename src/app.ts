@@ -1,13 +1,13 @@
+import cors from 'cors';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
-import cors from 'cors';
 
 import { env } from './config/env.js';
-import { requestLogger } from './middleware/requestLogger.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { rootRouter } from './routes/index.js';
 import { ApiError } from './errors/ApiError.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { requestLogger } from './middleware/requestLogger.js';
 import { healthRouter } from './routes/health.route.js';
+import { rootRouter } from './routes/index.js';
 
 export const createApp = (): Express => {
   const app = express();

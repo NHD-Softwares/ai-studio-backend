@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
-import { asyncHandler } from '../../src/utils/asyncHandler.js';
+import { describe, it, expect, vi } from 'vitest';
+
 import { ApiError } from '../../src/errors/ApiError.js';
+import { asyncHandler } from '../../src/utils/asyncHandler.js';
 
 describe('asyncHandler', () => {
   it('should successfully execute an async handler without error', async () => {

@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
-import { ApiError } from '../errors/ApiError.js';
+
 import { env } from '../config/env.js';
+import { ApiError } from '../errors/ApiError.js';
 import { logger } from '../lib/logger.js';
 
 export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {

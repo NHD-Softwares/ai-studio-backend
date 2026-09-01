@@ -1,6 +1,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier/flat';
+import importPlugin from 'eslint-plugin-import';
 
 export default tseslint.config(
   // Global ignores
@@ -77,6 +78,25 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [importPlugin.flatConfigs.recommended, importPlugin.flatConfigs.typescript],
+    rules: {
+      'import/no-unresolved': 'off',
+      'import/order': [
+        'warn',
+        {
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+          pathGroups: [{ pattern: 'src/**', group: 'internal' }],
+          pathGroupsExcludedImportTypes: ['builtin'],
+          'newlines-between': 'always',
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
+      'import/no-cycle': 'error',
+      'import/no-named-as-default': 'off',
     },
   },
 

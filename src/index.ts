@@ -12,10 +12,11 @@ const handleShutdown = (signal: string): void => {
   logger.info(`Received ${signal}. Gracefully shutting down...`);
   server.close(() => {
     logger.info('HTTP server closed.');
+    clearTimeout(timeId);
     process.exit(0);
   });
 
-  setTimeout(() => {
+  const timeId = setTimeout(() => {
     logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
