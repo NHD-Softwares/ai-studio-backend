@@ -1,4 +1,4 @@
-name: Node setup
+name: Core setup
 description: Setup Node.js and install dependencies
 
 inputs:
@@ -24,3 +24,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
+
+    - name: Generate Prisma client
+      shell: bash
+      run: pnpm db:generate
