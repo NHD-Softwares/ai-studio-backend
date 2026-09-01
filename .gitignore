@@ -15,7 +15,6 @@ generated/
 # Logs
 *.log
 npm-debug.log*
-pnpm-debug.log*
 
 # Coverage
 coverage/
@@ -35,5 +34,5 @@ Thumbs.db
 # Prisma migrations lock (keep migrations folder, exclude shadows)
 prisma/.migrations_lock
 
-# pnpm
-.pnpm-store/
+
+

@@ -18,24 +18,19 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 11
-
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: pnpm
+        cache: npm
 
     - name: Install dependencies
       shell: bash
-      run: pnpm install --frozen-lockfile
+      run: npm install
 
     - name: Generate Prisma client
       shell: bash
-      run: pnpm db:generate
+      run: npm run db:generate
       env:
         DATABASE_URL: ${{ inputs.database-url }}
         DIRECT_URL: ${{ inputs.direct-url }}
