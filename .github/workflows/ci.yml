@@ -15,6 +15,9 @@ jobs:
 
       - name: Setup project
         uses: ./.github/actions/core-setup
+        with:
+          database-url: ${{ secrets.DATABASE_URL }}
+          direct-url: ${{ secrets.DIRECT_URL }}
 
       - name: Type check
         run: pnpm typecheck
@@ -33,6 +36,9 @@ jobs:
 
       - name: Setup project
         uses: ./.github/actions/core-setup
+        with:
+          database-url: ${{ secrets.DATABASE_URL }}
+          direct-url: ${{ secrets.DIRECT_URL }}
 
       - name: Build project
         run: pnpm build

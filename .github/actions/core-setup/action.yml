@@ -2,6 +2,14 @@ name: Core setup
 description: Setup Node.js and install dependencies
 
 inputs:
+  database-url:
+    description: Database URL
+    required: true
+
+  direct-url:
+    description: Direct database URL
+    required: true
+
   node-version:
     description: Node.js version to use
     required: false
@@ -28,3 +36,6 @@ runs:
     - name: Generate Prisma client
       shell: bash
       run: pnpm db:generate
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
+        DIRECT_URL: ${{ inputs.direct-url }}
