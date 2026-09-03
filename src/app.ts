@@ -6,7 +6,6 @@ import { env } from './config/env.js';
 import { ApiError } from './errors/ApiError.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
-import { healthRouter } from './routes/health.route.js';
 import { rootRouter } from './routes/index.js';
 
 export const createApp = (): Express => {
@@ -26,8 +25,6 @@ export const createApp = (): Express => {
   app.use(requestLogger);
 
   app.use('/api/v1', rootRouter);
-
-  app.use('/health', healthRouter);
 
   app.use((_req, _res, next) => {
     next(new ApiError('Resource not found', 404));

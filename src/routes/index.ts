@@ -5,6 +5,6 @@ import { healthRouter } from './health.route.js';
 const router: IRouter = Router();
 
 // Root route aggregator
-router.use('/', healthRouter);
+router.use(healthRouter);
 
 export { router as rootRouter };
