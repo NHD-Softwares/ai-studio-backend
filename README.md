@@ -1,23 +1,23 @@
 # AI Studio Backend — Express + TypeScript Boilerplate
 
-A production-ready starter template for building robust, scalable REST APIs using **Express.js 5**, **TypeScript**, **Prisma**, and **Upstash Redis**.
+A production-grade starter for building REST APIs with **Express 5**, **TypeScript**, **Prisma**, and **Upstash Redis**. Currently deployed on **Railway**.
 
 ---
 
 ## ⚡ Features
 
 - **Runtime**: Node.js 24+ with native ES Modules (`"type": "module"`).
-- **Language**: TypeScript with strict `NodeNext` resolution and functional style conventions.
-- **Package Manager**: pnpm for fast, isolated, deterministic dependency management.
-- **Validation**: Zod-based typed environment variables and request validations with fail-fast startup checks.
-- **Data Layer**: Prisma ORM configured for Supabase PostgreSQL (pooler + direct migration support).
-- **Caching**: Serverless-friendly Upstash Redis REST client with typed cache-aside utility.
-- **Logging**: High-performance structured logging with Pino and `pino-http` request tracking.
-- **Error Handling**: Custom `ApiError` class with centralized middleware error formatting.
-- **Testing**: Vitest + Supertest integration for blazing-fast unit and API integration tests.
-- **Code Quality**: ESLint flat config, Prettier, Husky pre-commit hooks, and `lint-staged`.
-- **Containers**: Multi-stage production `Dockerfile` and `docker-compose.yml` for local dev.
-- **CI/CD**: GitHub Actions workflows for pull requests into `dev` and release gates into `master`.
+- **Language**: TypeScript, strict mode, `NodeNext` resolution, ES2023 target.
+- **Package Manager**: npm.
+- **Validation**: Zod-based typed environment variables (fail-fast on startup) plus a reusable `validate()` request middleware for body/params/query.
+- **Data Layer**: Prisma ORM (`@prisma/adapter-pg` driver adapter over a `pg` `Pool`) against Supabase PostgreSQL, with a custom generated-client output path.
+- **Caching**: Upstash Redis REST client with a typed cache-aside helper (`cacheGet`) that falls back to the DB fetcher if Redis is unavailable.
+- **Logging**: Structured logging with Pino + `pino-http` request logging, secrets redacted.
+- **Error Handling**: Custom `ApiError` class with a centralized error-handling middleware.
+- **Code Quality**: ESLint flat config, Prettier, Husky pre-commit hook (typecheck + lint-staged).
+- **CI**: GitHub Actions on push/PR to `master`/`dev` — typecheck, lint, format check, and build. No test step is wired into CI yet.
+- **Testing**: Vitest + Supertest are set up with a couple of example tests, but not enforced anywhere (not in CI, not in the pre-commit hook). Deliberately deferred for now.
+- **Containers**: None. No `Dockerfile`/`docker-compose.yml` — the project deploys directly to Railway. Deferred deliberately for the same reason as testing: not needed yet at this project's size.
 
 ---
 
@@ -25,8 +25,7 @@ A production-ready starter template for building robust, scalable REST APIs usin
 
 ### 1. Prerequisites
 
-- **Node.js**: `v24.x` or higher (see `.nvmrc`)
-- **pnpm**: `v11.x` (`npm install -g pnpm`)
+- **Node.js**: `v24.x` (see `.nvmrc`)
 - **PostgreSQL Database** (e.g. [Supabase](https://supabase.com))
 - **Upstash Redis Instance** ([Upstash](https://upstash.com))
 
@@ -35,83 +34,84 @@ A production-ready starter template for building robust, scalable REST APIs usin
 ```bash
 git clone <repository-url>
 cd ai-studio-backend
-pnpm install
+npm install
 ```
 
 ### 3. Environment Setup
-
-Copy the example environment file:
 
 ```bash
 cp .env.example .env.development
 ```
 
-Edit `.env.development` and provide your database and Redis connection details.
+Fill in `.env.development` with your database and Redis connection details. Required variables (validated by Zod at startup — see `src/config/env.ts`):
+
+| Variable                   | Notes                                                              |
+| -------------------------- | ------------------------------------------------------------------ |
+| `NODE_ENV`                 | `development` \| `production` \| `test`, defaults to `development` |
+| `PORT`                     | Defaults to `3000`                                                 |
+| `DATABASE_URL`             | Supabase pooler URL (port `6543`) — runtime queries                |
+| `DIRECT_URL`               | Supabase direct URL (port `5432`) — migrations only                |
+| `UPSTASH_REDIS_REST_URL`   | Upstash REST endpoint                                              |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token                                                 |
+| `LOG_LEVEL`                | Pino level, defaults to `info`                                     |
+| `CLIENT_ORIGIN`            | Allowed CORS origin                                                |
+
+The file loaded depends on `NODE_ENV`: `.env.production`, `.env.test`, or `.env.development` (default). All of these are git-ignored except `.env.example`.
 
 ### 4. Database Setup
 
-Generate Prisma client and run migrations:
-
 ```bash
-pnpm db:generate
-pnpm db:migrate:dev
+npm run db:generate
+npm run db:migrate:dev
 ```
 
 ### 5. Start Development Server
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
-The server will start at `http://localhost:3000`. Test the health check endpoint:
+Server starts at `http://localhost:3000`. The health check lives at:
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3000/api/v1/health
 ```
+
+> Note: there's also a second, currently non-functional `app.use('/health', healthRouter)` mount in `src/app.ts` — since `healthRouter` defines its own `/health` path internally, that mount actually resolves to `/health/health`, not `/health`. Worth cleaning up; the real health check is `/api/v1/health`.
 
 ---
 
 ## 📜 Available Scripts
 
-| Command                  | Description                                          |
-| :----------------------- | :--------------------------------------------------- |
-| `pnpm dev`               | Starts server with `tsx watch` for hot-reloading     |
-| `pnpm build`             | Compiles TypeScript source to `dist/`                |
-| `pnpm start`             | Runs compiled production server from `dist/index.js` |
-| `pnpm typecheck`         | Validates TypeScript types across the project        |
-| `pnpm lint`              | Runs ESLint on all files                             |
-| `pnpm format`            | Formats code with Prettier                           |
-| `pnpm format:check`      | Checks code formatting without modifying files       |
-| `pnpm test`              | Runs all Vitest test suites                          |
-| `pnpm test:watch`        | Runs Vitest in interactive watch mode                |
-| `pnpm test:coverage`     | Generates test coverage report                       |
-| `pnpm db:generate`       | Generates typed Prisma Client                        |
-| `pnpm db:migrate:dev`    | Applies new migrations in development                |
-| `pnpm db:migrate:deploy` | Applies pending migrations in production             |
-| `pnpm db:seed`           | Seeds database with initial data                     |
-| `pnpm db:studio`         | Opens Prisma Studio GUI                              |
+| Command                     | Description                                           |
+| :-------------------------- | :---------------------------------------------------- |
+| `npm run dev`               | Starts server with `tsx watch` for hot-reloading      |
+| `npm run build`             | Compiles TypeScript source to `dist/`                 |
+| `npm start`                 | Runs compiled production server from `dist/index.js`  |
+| `npm run typecheck`         | Validates TypeScript types across the project         |
+| `npm run lint`              | Runs ESLint on all files                              |
+| `npm run format`            | Formats code with Prettier                            |
+| `npm run format:check`      | Checks code formatting without modifying files        |
+| `npm test`                  | Runs all Vitest test suites (not run in CI currently) |
+| `npm run test:watch`        | Runs Vitest in interactive watch mode                 |
+| `npm run test:coverage`     | Generates a test coverage report                      |
+| `npm run db:generate`       | Generates the typed Prisma Client                     |
+| `npm run db:migrate:dev`    | Applies new migrations in development                 |
+| `npm run db:migrate:deploy` | Applies pending migrations in production              |
+| `npm run db:seed`           | Seeds the database with initial data                  |
+| `npm run db:studio`         | Opens Prisma Studio GUI                               |
 
 ---
 
-## 🐳 Docker Deployment
+## 🚂 Deployment
 
-### Build Image
-
-```bash
-docker build -t ai-studio-backend .
-```
-
-### Run Container
-
-```bash
-docker run -p 3000:3000 --env-file .env.production ai-studio-backend
-```
+Deployed on **Railway**. CI (`.github/workflows/ci.yml`) runs on push/PR to `master` and `dev`: typecheck, lint, format check, and a build job. No Docker image is built — Railway builds and runs the app directly from the Node.js source.
 
 ---
 
 ## 📖 Comprehensive Documentation
 
-For complete architectural details, step-by-step recipes for creating new endpoints/services, and workflow guidelines, please consult:
+For architecture details, the request lifecycle, and a step-by-step recipe for adding a new feature, see:
 
 👉 **[Developer Walkthrough Guide (devWalkthrough.md)](./devWalkthrough.md)**
 
