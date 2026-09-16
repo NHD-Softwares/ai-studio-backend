@@ -1,12 +1,15 @@
+import { toNodeHandler } from 'better-auth/node';
 import cors from 'cors';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 
 import { env } from './config/env.js';
 import { ApiError } from './errors/ApiError.js';
+import { healthRouter } from './features/health/health.route.js';
+import { rootRouter } from './index.route.js';
+import { auth } from './lib/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
-import { rootRouter } from './routes/index.js';
 
 export const createApp = (): Express => {
   const app = express();
@@ -25,6 +28,12 @@ export const createApp = (): Express => {
   app.use(requestLogger);
 
   app.use('/api/v1', rootRouter);
+
+  // TODO: That's temporary until we get the frontend ready
+  app.get('/email-verified', (_req, res) => res.status(200).send('Email verified successfully'));
+
+  app.all('/api/auth/*splat', toNodeHandler(auth));
+  app.use('/health', healthRouter);
 
   app.use((_req, _res, next) => {
     next(new ApiError('Resource not found', 404));

@@ -16,6 +16,6 @@
     "noUnusedParameters": true,
     "isolatedModules": true
   },
-  "include": ["src", "tests", "prisma"],
+  "include": ["src", "tests", "prisma", "src/index.route.ts"],
   "exclude": ["node_modules", "dist", "generated"]
 }
