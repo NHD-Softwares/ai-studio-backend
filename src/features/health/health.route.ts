@@ -1,8 +1,8 @@
-import { Router, type Router as IRouter } from 'express';
+import { Router } from 'express';
 
 import { getHealth } from './health.controller.js';
 
-const healthRouter: IRouter = Router();
+const healthRouter = Router();
 
 healthRouter.get('/health', getHealth);
 
