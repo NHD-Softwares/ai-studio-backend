@@ -17,7 +17,7 @@ export const createApp = (): Express => {
   app.use(helmet());
   app.use(
     cors({
-      origin: env.CLIENT_ORIGIN,
+      origin: [env.CLIENT_ORIGIN, 'http://localhost:3000', 'https://ai-studio-ruddy.vercel.app'], // Temp till fix env on railway
       credentials: true,
       methods: ['GET', 'POST', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type'],
