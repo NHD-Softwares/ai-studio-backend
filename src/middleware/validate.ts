@@ -1,7 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { ZodError, ZodType } from 'zod';
-
-import { ApiError } from '../errors/ApiError.js';
+import type { ZodType } from 'zod';
 
 type ValidationTarget = 'body' | 'params' | 'query';
 
@@ -10,9 +8,6 @@ interface ValidateOptions {
   params?: ZodType;
   query?: ZodType;
 }
-
-const formatZodError = (error: ZodError): string =>
-  error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
 
 export const validate =
   (schemas: ValidateOptions) =>
@@ -26,7 +21,7 @@ export const validate =
       const result = schema.safeParse(req[target]);
 
       if (!result.success) {
-        return next(new ApiError(`Invalid ${target}: ${formatZodError(result.error)}`, 422));
+        return next(result.error);
       }
 
       (req[target] as unknown) = result.data;

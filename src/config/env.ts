@@ -23,6 +23,13 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   CLIENT_ORIGIN: z.url(),
+  BETTER_AUTH_SECRET: z.string().min(1),
+  BETTER_AUTH_URL: z.url(),
+  SMTP_HOST: z.string().min(1),
+  SMTP_PORT: z.coerce.number().int().positive().default(465),
+  SMTP_USER: z.email(),
+  SMTP_PASS: z.string().min(1),
+  EMAIL_FROM: z.email(),
 });
 
 const parsed = envSchema.safeParse(process.env);
