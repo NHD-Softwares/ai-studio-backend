@@ -1,5 +1,6 @@
 import { type IncomingHttpHeaders } from 'node:http';
 
+import { env } from '../../config/env.js';
 import { ApiError } from '../../errors/ApiError.js';
 import { auth } from '../../lib/auth.js';
 import { prisma } from '../../lib/prisma.js';
@@ -45,9 +46,8 @@ const resendVerificationEmailService = async (email: string) => {
 
   if (user.emailVerified) throw new ApiError('User is already verified', 422);
 
-  // temporary callback url until the front end is ready
   const response = await auth.api.sendVerificationEmail({
-    body: { email, callbackURL: 'http://localhost:3000/email-verified' },
+    body: { email, callbackURL: `${env.CLIENT_ORIGIN}/email-verified` },
   });
 
   if (!response.status) throw new ApiError('Failed to send verification email', 500);
@@ -82,7 +82,6 @@ const requestResetPasswordService = async (email: string) => {
   const response = await auth.api.requestPasswordReset({
     body: {
       email,
-      redirectTo: 'http://localhost:3000/reset-password', // TODO: THis is temp till the frontend gets ready
     },
   });
 
@@ -97,7 +96,10 @@ const resetPasswordService = async (newPassword: string, token: string) => {
       newPassword,
       token,
     },
+    asResponse: true,
   });
+
+  if (!response.ok) throw new ApiError(`Invalid or expired token`, 400);
 
   return response;
 };

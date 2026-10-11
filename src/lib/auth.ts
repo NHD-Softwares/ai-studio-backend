@@ -1,6 +1,8 @@
 import { betterAuth, type SecondaryStorage } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
+import { env } from '../config/env.js';
+
 import { sendEmail, sendResetPasswordEmail, sendVerificationEmail } from './email.js';
 import { prisma } from './prisma.js';
 import { redis } from './redis.js';
@@ -35,6 +37,8 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  baseURL: env.BETTER_AUTH_URL,
+  trustedOrigins: [env.CLIENT_ORIGIN],
   emailAndPassword: {
     enabled: true,
     revokeSessionsOnPasswordReset: true,
@@ -49,7 +53,7 @@ export const auth = betterAuth({
 
     sendResetPassword: async ({ user, url }, _request) => {
       const resetUrl = new URL(url);
-      resetUrl.searchParams.set('callbackURL', '/reset-password');
+      resetUrl.searchParams.set('callbackURL', `${env.CLIENT_ORIGIN}/reset-password`);
       await sendResetPasswordEmail({
         to: user.email,
         url: resetUrl.toString(),
@@ -63,7 +67,7 @@ export const auth = betterAuth({
 
     sendVerificationEmail: async ({ user, url }, _request) => {
       const verifyUrl = new URL(url);
-      verifyUrl.searchParams.set('callbackURL', '/email-verified');
+      verifyUrl.searchParams.set('callbackURL', `${env.CLIENT_ORIGIN}/email-verified`);
       await sendVerificationEmail({ to: user.email, url: verifyUrl.toString() });
     },
   },
