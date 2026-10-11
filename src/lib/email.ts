@@ -1,17 +1,21 @@
 import nodemailer from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 import { env } from '../config/env.js';
 import { resetPasswordTemplate, verificationEmailTemplate } from '../templates/auth.templates.js';
 
-const transporter = nodemailer.createTransport({
+const transportOptions: SMTPTransport.Options & { family: 4 } = {
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
-  secure: env.SMTP_PORT === 465, // true for 465, false for 587 (STARTTLS)
+  secure: env.SMTP_PORT === 465,
+  family: 4,
   auth: {
     user: env.SMTP_USER,
     pass: env.SMTP_PASS,
   },
-});
+};
+
+const transporter = nodemailer.createTransport(transportOptions);
 
 // Fail fast on boot if SMTP creds are wrong, instead of failing silently on first send
 transporter.verify().catch((err) => {
