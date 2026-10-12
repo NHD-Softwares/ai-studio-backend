@@ -3,6 +3,7 @@ import { type IncomingHttpHeaders } from 'node:http';
 import { env } from '../../config/env.js';
 import { ApiError } from '../../errors/ApiError.js';
 import { auth } from '../../lib/auth.js';
+import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 
 import { type ISignInEmail, type ISignupSchema } from './auth.schema.js';
@@ -30,6 +31,12 @@ const signUpEmailService = async (credentials: ISignupSchema) => {
   });
 
   if (!response.ok) throw new ApiError(response.statusText, response.status);
+
+  void auth.api
+    .sendVerificationEmail({
+      body: { email, callbackURL: `${env.CLIENT_ORIGIN}/email-verified` },
+    })
+    .catch(() => logger.error('Failed to send verification email'));
 
   return response;
 };

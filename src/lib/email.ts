@@ -9,6 +9,10 @@ const transportOptions: SMTPTransport.Options & { family: 4 } = {
   port: env.SMTP_PORT,
   secure: env.SMTP_PORT === 465,
   family: 4,
+  pool: true,
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 15000,
   auth: {
     user: env.SMTP_USER,
     pass: env.SMTP_PASS,
@@ -17,7 +21,6 @@ const transportOptions: SMTPTransport.Options & { family: 4 } = {
 
 const transporter = nodemailer.createTransport(transportOptions);
 
-// Fail fast on boot if SMTP creds are wrong, instead of failing silently on first send
 transporter.verify().catch((err) => {
   console.error('SMTP connection failed:', err);
 });
@@ -57,4 +60,9 @@ const sendResetPasswordEmail = async ({ to, url }: { to: string; url: string }) 
   });
 };
 
-export { sendEmail, sendVerificationEmail, sendResetPasswordEmail };
+const runInBackground = (task: Promise<unknown>, label: string) => {
+  task.catch((err) => console.error(`${label} failed:`, err));
+  return Promise.resolve();
+};
+
+export { sendEmail, sendVerificationEmail, sendResetPasswordEmail, runInBackground };

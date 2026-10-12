@@ -3,7 +3,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 
 import { env } from '../config/env.js';
 
-import { sendEmail, sendResetPasswordEmail, sendVerificationEmail } from './email.js';
+import { runInBackground, sendResetPasswordEmail, sendVerificationEmail } from './email.js';
 import { prisma } from './prisma.js';
 import { redis } from './redis.js';
 
@@ -43,32 +43,26 @@ export const auth = betterAuth({
     enabled: true,
     revokeSessionsOnPasswordReset: true,
 
-    onExistingUserSignUp: async ({ user }, _request) => {
-      await sendEmail({
-        to: user.email,
-        subject: 'Sign-up attempt with your email',
-        text: 'Someone tried to create an account using your email address. If this was you, try signing in instead. If not, you can safely ignore this email.',
-      });
-    },
-
-    sendResetPassword: async ({ user, url }, _request) => {
+    sendResetPassword: ({ user, url }) => {
       const resetUrl = new URL(url);
       resetUrl.searchParams.set('callbackURL', `${env.CLIENT_ORIGIN}/reset-password`);
-      await sendResetPasswordEmail({
-        to: user.email,
-        url: resetUrl.toString(),
-      });
+      return runInBackground(
+        sendResetPasswordEmail({ to: user.email, url: resetUrl.toString() }),
+        'Reset password email',
+      );
     },
   },
 
   emailVerification: {
-    sendOnSignUp: true,
     autoSignInAfterVerification: true,
 
-    sendVerificationEmail: async ({ user, url }, _request) => {
+    sendVerificationEmail: ({ user, url }) => {
       const verifyUrl = new URL(url);
       verifyUrl.searchParams.set('callbackURL', `${env.CLIENT_ORIGIN}/email-verified`);
-      await sendVerificationEmail({ to: user.email, url: verifyUrl.toString() });
+      return runInBackground(
+        sendVerificationEmail({ to: user.email, url: verifyUrl.toString() }),
+        'Verification email',
+      );
     },
   },
 
