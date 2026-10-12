@@ -29,7 +29,7 @@ const signUpEmail = async (req: Request, res: Response) => {
   const authRes = await signUpEmailService(validatedBody);
   const data = (await authRes.json()) as object;
 
-  const setCookie = authRes.headers.get('set-cookie');
+  const setCookie = authRes.headers.getSetCookie();
 
   if (setCookie) {
     res.setHeader('Set-Cookie', setCookie);
@@ -52,7 +52,7 @@ const signInEmail = async (req: Request, res: Response) => {
   const authRes = await signInEmailService(validatedBody, req.headers);
   const data = (await authRes.json()) as object;
 
-  const setCookie = authRes.headers.get('set-cookie');
+  const setCookie = authRes.headers.getSetCookie();
 
   if (setCookie) {
     res.setHeader('Set-Cookie', setCookie);
@@ -62,7 +62,13 @@ const signInEmail = async (req: Request, res: Response) => {
 };
 
 const signOut = async (req: Request, res: Response) => {
-  void (await signOutService(req.headers));
+  const authRes = await signOutService(req.headers);
+
+  const setCookie = authRes.headers.getSetCookie();
+
+  if (setCookie) {
+    res.setHeader('Set-Cookie', setCookie);
+  }
 
   sendResponse(res, 200, 'User signed out successfully');
 };

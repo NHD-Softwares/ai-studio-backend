@@ -80,8 +80,9 @@ const signInEmailService = async (credentials: ISignInEmail, headers: IncomingHt
 };
 
 const signOutService = async (headers: IncomingHttpHeaders) => {
-  await auth.api.signOut({
+  return await auth.api.signOut({
     headers: new Headers(headers as HeadersInit),
+    asResponse: true,
   });
 };
 
