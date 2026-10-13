@@ -18,11 +18,6 @@ import {
   signUpEmailService,
 } from './auth.service.js';
 
-// TODO MAX PRIORITY: Make the authenticate middleware, and make sure users can't do anything if not verified, make them stuck in the /verify.
-// TODO 1: Test all the current endpoint
-// TODO 2: Implement google and facebook auth
-// TODO 3: Implement change password endpoint
-
 const signUpEmail = async (req: Request, res: Response) => {
   const validatedBody = signUpSchema.parse(req.body);
 
