@@ -18,10 +18,8 @@ export const getMe = async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store');
 
   sendResponse(res, 200, 'Session retrieved successfully', {
-    data: {
-      user: session.user,
-      session: session.session,
-    },
+    user: session.user,
+    session: session.session,
   });
 };
 
