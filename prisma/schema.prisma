@@ -18,6 +18,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  userCredits   UserCredits[]
+  orders        Order[]
+  creditTransactions CreditTransaction[]
+  userSubscriptions UserSubscription[]
 
   @@unique([email])
   @@map("user")
@@ -69,4 +73,244 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+
+
+enum OrderType {
+  CREDIT_PACK
+  SUBSCRIPTION
+}
+
+enum OrderStatus {
+  PENDING    // created at checkout, nobody has paid yet
+  FULFILLED  // payment confirmed by webhook, credits granted
+  EXPIRED    // abandoned (set by the cleanup job)
+  CANCELED
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYMOB
+  FAWRY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum CreditTransactionType {
+  PURCHASE            // +credits from a credit pack order
+  SUBSCRIPTION_GRANT  // +credits from a subscription cycle
+  SPEND               // -credits used (e.g. a generation)
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+
+// ============================== CATALOG ====================================
+
+model CreditPlan {
+  id         String   @id @default(cuid())
+  name       String
+  credits    Int
+  priceMinor Int
+  currency   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("credit_plans")
+}
+
+model SubscriptionPlan {
+  id             String   @id @default(cuid())
+  name           String
+  monthlyCredits Int
+  priceMinor     Int
+  currency       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders            Order[]
+  userSubscriptions UserSubscription[]
+
+  @@map("subscription_plans")
+}
+
+
+// ============================== BALANCE ====================================
+
+model UserCredits {
+  userId    String   @id
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("user_credits")
+}
+
+
+// ============================== ORDERS =====================================
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  type        OrderType
+  status      OrderStatus @default(PENDING)
+
+  amountMinor Int
+  currency    String
+
+  creditPlanId       String?
+  subscriptionPlanId String?
+
+  userSubscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  creditPlan       CreditPlan?       @relation(fields: [creditPlanId], references: [id], onDelete: Restrict)
+  subscriptionPlan SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id], onDelete: Restrict)
+  userSubscription UserSubscription? @relation(fields: [userSubscriptionId], references: [id], onDelete: Restrict)
+
+  paymentTransactions PaymentTransaction[]
+  creditTransactions  CreditTransaction[]
+
+  // Billing history: "this user's orders, newest first".
+  @@index([userId, createdAt])
+  // Expiry job: "pending orders older than 24h".
+  @@index([status, createdAt])
+  // Foreign keys are NOT indexed automatically in Postgres:
+  @@index([userSubscriptionId])
+  @@map("orders")
+}
+
+
+// ============================== PAYMENTS ===================================
+
+// One ATTEMPT to pay for an order. An order can have many (retries).
+model PaymentTransaction {
+  id      String        @id @default(cuid())
+  orderId String
+  provider PaymentProvider
+  status  PaymentStatus @default(PENDING)
+
+  // The provider's own id for this payment/session. Null until we get it back.
+  // Webhooks identify payments by THIS id, so lookups by it must be fast.
+  providerPaymentId String?
+  amountMinor       Int
+  failureReason     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order          Order                   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  webhookEvents  ProcessedWebhookEvent[]
+
+  // "All payment attempts for this order".
+  @@index([orderId])
+  // Same provider payment can't appear twice. Postgres treats NULLs as
+  // distinct, so many rows with providerPaymentId = null are still allowed.
+  @@unique([provider, providerPaymentId])
+  @@map("payment_transactions")
+}
+
+
+// ============================== LEDGER =====================================
+
+// Append-only history of every credit change. NEVER update or delete rows.
+model CreditTransaction {
+  id      String @id @default(cuid())
+  userId  String
+  orderId String?
+
+  // Positive = credits added, negative = credits spent.
+  delta        Int
+  // Balance right after this change. Lets you verify ledger vs balance.
+  balanceAfter Int
+  type         CreditTransactionType
+
+  // What a SPEND was for, e.g. referenceType "generation", referenceId "<id>".
+  referenceType String?
+  referenceId   String?
+
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  // THE double-grant protection: one order can only produce one ledger row of
+  // each type. A second grant for the same order fails in the database,
+  // even if there is a bug in your code. (Spends have orderId = null and
+  // NULLs don't collide, so unlimited spends are fine.)
+  @@unique([orderId, type])
+  // Credit activity tab: "this user's ledger, newest first".
+  @@index([userId, createdAt])
+  @@map("credit_transactions")
+}
+
+
+// ============================== SUBSCRIPTIONS ==============================
+
+model UserSubscription {
+  id       String             @id @default(cuid())
+  userId   String
+  planId   String
+  status   SubscriptionStatus
+
+  provider               PaymentProvider
+  // The provider's id for this subscription. Renewal webhooks use it.
+  providerSubscriptionId String?
+
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  // True = user canceled but keeps access until currentPeriodEnd.
+  cancelAtPeriodEnd  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  orders Order[]
+
+  // "Does this user have an active subscription?"
+  @@index([userId, status])
+  @@index([planId])
+  @@unique([provider, providerSubscriptionId])
+  @@map("user_subscriptions")
+  // billing-extra.sql adds: one ACTIVE subscription per user (partial index).
+}
+
+
+// ============================== WEBHOOK DEDUP ==============================
+
+// A list of provider events we've already handled.
+model ProcessedWebhookEvent {
+  id          String          @id @default(cuid())
+  provider    PaymentProvider
+  // The provider's event id, e.g. Stripe "evt_1Abc...".
+  eventId     String
+  processedAt DateTime        @default(now())
+
+  // Optional: a webhook can arrive before we know which payment it's about.
+  paymentTransactionId String?
+  paymentTransaction   PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: SetNull)
+
+  // THE idempotency guarantee. Inserting the same event twice throws a
+  // unique-constraint error, which your handler catches and treats as
+  // "already processed, return 200".
+  @@unique([provider, eventId])
+  @@index([paymentTransactionId])
+  @@map("processed_webhook_events")
 }
