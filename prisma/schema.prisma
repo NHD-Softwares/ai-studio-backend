@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -9,19 +8,19 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  userCredits   UserCredits[]
-  orders        Order[]
+  id                 String              @id
+  name               String
+  email              String
+  emailVerified      Boolean             @default(false)
+  image              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  sessions           Session[]
+  accounts           Account[]
+  userCredits        UserCredits?
+  orders             Order[]
   creditTransactions CreditTransaction[]
-  userSubscriptions UserSubscription[]
+  userSubscriptions  UserSubscription?
 
   @@unique([email])
   @@map("user")
@@ -75,17 +74,15 @@ model Verification {
   @@map("verification")
 }
 
-
-
 enum OrderType {
   CREDIT_PACK
   SUBSCRIPTION
 }
 
 enum OrderStatus {
-  PENDING    // created at checkout, nobody has paid yet
-  FULFILLED  // payment confirmed by webhook, credits granted
-  EXPIRED    // abandoned (set by the cleanup job)
+  PENDING // created at checkout, nobody has paid yet
+  FULFILLED // payment confirmed by webhook, credits granted
+  EXPIRED // abandoned (set by the cleanup job)
   CANCELED
 }
 
@@ -102,9 +99,10 @@ enum PaymentStatus {
 }
 
 enum CreditTransactionType {
-  PURCHASE            // +credits from a credit pack order
-  SUBSCRIPTION_GRANT  // +credits from a subscription cycle
-  SPEND               // -credits used (e.g. a generation)
+  PURCHASE // +credits from a credit pack order
+  SUBSCRIPTION_GRANT // +credits from a subscription cycle
+  SUBSCRIPTION_EXPIRE // -credits from a subscription cycle
+  SPEND // -credits used (e.g. a generation)
 }
 
 enum SubscriptionStatus {
@@ -113,6 +111,10 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum CreditBucket {
+  CREDIT // the creditBalance column (bought packs)
+  SUBSCRIPTION_CREDITS // the subscriptionBalance column (monthly allowance)
+}
 
 // ============================== CATALOG ====================================
 
@@ -145,12 +147,13 @@ model SubscriptionPlan {
   @@map("subscription_plans")
 }
 
-
 // ============================== BALANCE ====================================
 
 model UserCredits {
-  userId    String   @id
-  balance   Int      @default(0)
+  userId              String @id
+  creditBalance       Int    @default(0)
+  subscriptionBalance Int    @default(0)
+
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -158,14 +161,13 @@ model UserCredits {
   @@map("user_credits")
 }
 
-
 // ============================== ORDERS =====================================
 
 model Order {
-  id          String      @id @default(cuid())
-  userId      String
-  type        OrderType
-  status      OrderStatus @default(PENDING)
+  id     String      @id @default(cuid())
+  userId String
+  type   OrderType
+  status OrderStatus @default(PENDING)
 
   amountMinor Int
   currency    String
@@ -195,15 +197,14 @@ model Order {
   @@map("orders")
 }
 
-
 // ============================== PAYMENTS ===================================
 
 // One ATTEMPT to pay for an order. An order can have many (retries).
 model PaymentTransaction {
-  id      String        @id @default(cuid())
-  orderId String
+  id       String          @id @default(cuid())
+  orderId  String
   provider PaymentProvider
-  status  PaymentStatus @default(PENDING)
+  status   PaymentStatus   @default(PENDING)
 
   // The provider's own id for this payment/session. Null until we get it back.
   // Webhooks identify payments by THIS id, so lookups by it must be fast.
@@ -214,28 +215,28 @@ model PaymentTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order          Order                   @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  webhookEvents  ProcessedWebhookEvent[]
+  order         Order                   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  webhookEvents ProcessedWebhookEvent[]
 
-  // "All payment attempts for this order".
-  @@index([orderId])
   // Same provider payment can't appear twice. Postgres treats NULLs as
   // distinct, so many rows with providerPaymentId = null are still allowed.
   @@unique([provider, providerPaymentId])
+  // "All payment attempts for this order".
+  @@index([orderId])
   @@map("payment_transactions")
 }
-
 
 // ============================== LEDGER =====================================
 
 // Append-only history of every credit change. NEVER update or delete rows.
 model CreditTransaction {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   userId  String
   orderId String?
 
   // Positive = credits added, negative = credits spent.
   delta        Int
+  bucket       CreditBucket
   // Balance right after this change. Lets you verify ledger vs balance.
   balanceAfter Int
   type         CreditTransactionType
@@ -259,14 +260,13 @@ model CreditTransaction {
   @@map("credit_transactions")
 }
 
-
 // ============================== SUBSCRIPTIONS ==============================
 
 model UserSubscription {
-  id       String             @id @default(cuid())
-  userId   String
-  planId   String
-  status   SubscriptionStatus
+  id     String             @id @default(cuid())
+  userId String             @unique
+  planId String
+  status SubscriptionStatus
 
   provider               PaymentProvider
   // The provider's id for this subscription. Renewal webhooks use it.
@@ -283,15 +283,14 @@ model UserSubscription {
   user   User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
   orders Order[]
+  // billing-extra.sql adds: one ACTIVE subscription per user (partial index).
 
+  @@unique([provider, providerSubscriptionId])
   // "Does this user have an active subscription?"
   @@index([userId, status])
   @@index([planId])
-  @@unique([provider, providerSubscriptionId])
   @@map("user_subscriptions")
-  // billing-extra.sql adds: one ACTIVE subscription per user (partial index).
 }
-
 
 // ============================== WEBHOOK DEDUP ==============================
 
