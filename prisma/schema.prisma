@@ -116,16 +116,34 @@ enum CreditBucket {
   SUBSCRIPTION_CREDITS // the subscriptionBalance column (monthly allowance)
 }
 
+enum Currency {
+  USD
+  EGP
+}
+
 // ============================== CATALOG ====================================
 
+model Price {
+  id                 String   @id @default(cuid())
+  creditPlanId       String?
+  creditPlan         CreditPlan? @relation(fields: [creditPlanId], references: [id], onDelete: Restrict)
+  subscriptionPlanId String?
+  subscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id], onDelete: Restrict)
+  currency           Currency
+  amountMinor        Int
+
+  @@unique([creditPlanId, currency])
+  @@unique([subscriptionPlanId, currency])
+  @@map("prices")
+}
+
 model CreditPlan {
-  id         String   @id @default(cuid())
-  name       String
-  credits    Int
-  priceMinor Int
-  currency   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  credits   Int
+  prices    Price[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   orders Order[]
 
@@ -136,8 +154,7 @@ model SubscriptionPlan {
   id             String   @id @default(cuid())
   name           String
   monthlyCredits Int
-  priceMinor     Int
-  currency       String
+  prices         Price[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -146,7 +163,6 @@ model SubscriptionPlan {
 
   @@map("subscription_plans")
 }
-
 // ============================== BALANCE ====================================
 
 model UserCredits {
