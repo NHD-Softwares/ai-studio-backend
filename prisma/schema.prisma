@@ -141,7 +141,7 @@ model CreditPlan {
   id        String   @id @default(cuid())
   name      String
   credits   Int
-  prices    Price[]
+  price    Price[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -154,7 +154,7 @@ model SubscriptionPlan {
   id             String   @id @default(cuid())
   name           String
   monthlyCredits Int
-  prices         Price[]
+  price         Price[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
