@@ -18,4 +18,8 @@ export default defineConfig({
     // Falls back to DATABASE_URL if DIRECT_URL is not set.
     url: env('DIRECT_URL') || env('DATABASE_URL'),
   },
+  migrations: {
+    path: 'prisma/migrations',
+    seed: 'tsx prisma/seed.ts',
+  },
 });
