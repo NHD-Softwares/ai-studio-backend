@@ -3,9 +3,22 @@ import type { Request, Response } from 'express';
 
 import { ApiError } from '../../errors/ApiError.js';
 import { auth } from '../../lib/auth.js';
+import { prisma } from '../../lib/prisma.js';
 import { sendResponse } from '../../utils/response.js';
+import { signOutService } from '../auth/auth.service.js';
 
 import { editUserSchema } from './user.schema.js';
+
+const clearAuthCookies = async (req: Request, res: Response) => {
+  const response = await signOutService(req.headers);
+  const setCookie = response.headers.getSetCookie();
+
+  if (setCookie) {
+    res.setHeader('Set-Cookie', setCookie);
+  }
+
+  sendResponse(res, 401, 'Not authenticated');
+};
 
 export const getMe = async (req: Request, res: Response) => {
   const session = await auth.api.getSession({
@@ -13,12 +26,18 @@ export const getMe = async (req: Request, res: Response) => {
     query: { disableCookieCache: true },
   });
 
-  if (!session) throw new ApiError('Not authenticated', 401);
+  if (!session) return await clearAuthCookies(req, res);
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+
+  if (!user) return await clearAuthCookies(req, res);
 
   res.setHeader('Cache-Control', 'no-store');
 
   sendResponse(res, 200, 'Session retrieved successfully', {
-    user: session.user,
+    user,
     session: session.session,
   });
 };
